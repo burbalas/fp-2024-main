@@ -1,0 +1,17 @@
+<command> ::= "add" <add_command> 
+           | "remove" <remove_command> 
+           | "list products"
+           | "search" <search_command> 
+           | "exit"
+
+<add_command> ::= "product" <name> <kcal>
+<remove_command> ::= "product" <name>
+<search_command> ::= "name" <name> 
+                  | "kcal" <kcal>
+
+<name> ::= <word> | <word> <name>
+<kcal> ::= <digit> | <digit> <kcal> 
+
+<word> ::= ( [A-Z]? | [a-z] )+
+
+<digit> ::= [1-9]
