@@ -1,16 +1,16 @@
-<command> ::= "add" <add_command> 
-           | "remove" <remove_command> 
+<command> ::= "add" " " <add_command> 
+           | "remove" " " <remove_command> 
            | "list recipes"
-           | "search" <search_command> 
+           | "search" " " <search_command> 
            | "exit"
 
-<add_command> ::= "recipe" <recipe_name> <ingredients> 
-                | "recipe" <recipe_name> <sub_recipe>
+<add_command> ::= <recipe_name> " " <ingredients> 
+                | <recipe_name> " " <sub_recipe> " " <ingredients> 
 
-<remove_command> ::= "recipe" <recipe_name>
+<remove_command> ::= <recipe_name>
 
-<search_command> ::= "name" <recipe_name> 
-                  | "ingredient" <ingredient_name>
+<search_command> ::= "name" " " <recipe_name> 
+                  | "ingredient" " " <ingredient_name>
 
 <recipe_name> ::= <word> | <word> <recipe_name>
 <ingredient_name> ::= <word> | <word> <ingredient_name>
@@ -28,4 +28,4 @@
 <calorie_value> ::= <digit> | <digit> <calorie_value>
 
 <word> ::= ( [A-Z]? | [a-z] )+
-<digit> ::= [1-9] | [0-9] 
+<digit> ::= [0-9]+
