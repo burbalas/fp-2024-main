@@ -22,6 +22,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 dependencies:
 - base >= 4.7 && < 5
 - mtl
+- hspec
 
 ghc-options:
 - -Wall
@@ -68,6 +69,8 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - base
     - fp2024
     - tasty
     - tasty-hunit
+
