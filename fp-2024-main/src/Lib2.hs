@@ -8,7 +8,7 @@ module Lib2
 
 import Data.Char (isAlpha, isDigit)
 
-
+-- Command and related data types
 data Command
     = Add AddCommand
     | Remove String
@@ -18,14 +18,15 @@ data Command
     deriving (Show, Eq)
 
 data AddCommand
-    = AddRecipe String [Ingredient]  
-    | AddSubRecipe String String     
-    | AddSubRecipeWithIngredients String String [Ingredient] 
+    = AddRecipe String [Ingredient]
+    | AddSubRecipe String String
+    | AddSubRecipes String [String]
+    | AddSubRecipeWithIngredients String String [Ingredient]
     deriving (Show, Eq)
 
 data SearchCommand
-    = SearchByName String             
-    | SearchByIngredient String      
+    = SearchByName String
+    | SearchByIngredient String
     deriving (Show, Eq)
 
 data Ingredient = Ingredient
@@ -35,13 +36,11 @@ data Ingredient = Ingredient
     }
     deriving (Show, Eq)
 
-
 type Parser a = String -> Either String (a, String)
 
-
+-- Helper parsers
 dropWhitespace :: String -> String
 dropWhitespace = dropWhile (`elem` " \t\n")
-
 
 parseWord :: Parser String
 parseWord input =
@@ -50,14 +49,12 @@ parseWord input =
        then Left "Expected a word"
        else Right (word, rest)
 
-
 parseDigits :: Parser Int
 parseDigits input =
     let (digits, rest) = span isDigit (dropWhitespace input)
     in if null digits
        then Left "Expected a number"
        else Right (read digits, rest)
-
 
 parseIngredient :: Parser Ingredient
 parseIngredient input =
@@ -72,49 +69,42 @@ parseIngredient input =
                         Right (cal, rest3) ->
                             Right (Ingredient name qty cal, rest3)
 
+-- New function to parse subrecipes and ingredients dynamically
+parseSubrecipesAndIngredients :: String -> Either String ([String], [Ingredient], String)
+parseSubrecipesAndIngredients input =
+    let trimmed = dropWhitespace input
+    in parseLoop trimmed [] []
 
-parseIngredients :: Parser [Ingredient]
-parseIngredients input =
+parseLoop :: String -> [String] -> [Ingredient] -> Either String ([String], [Ingredient], String)
+parseLoop "" subRecipes ingredients = Right (subRecipes, ingredients, "")
+parseLoop input subRecipes ingredients =
     case parseIngredient input of
-        Left err -> Left err
-        Right (ingredient, rest) ->
-            case parseIngredients rest of
-                Left _ -> Right ([ingredient], rest) 
-                Right (ingredients, rest') -> Right (ingredient : ingredients, rest')
+        Right (ingredient, rest) -> parseLoop rest subRecipes (ingredients ++ [ingredient])
+        Left _ -> -- If not an ingredient, check for subrecipe
+            case parseWord input of
+                Right (word, rest) ->
+                    if all isAlpha word
+                    then parseLoop rest (subRecipes ++ [word]) ingredients
+                    else Left "Invalid input: expected subrecipe or ingredient"
+                Left _ -> Right (subRecipes, ingredients, input)
 
-
+-- Updated parseAddCommand
 parseAddCommand :: Parser AddCommand
 parseAddCommand input =
     case parseWord input of
         Left err -> Left err
         Right (recipeName, rest1) ->
-            
-            case parseWord rest1 of
-                Right (potentialSubRecipe, rest2) ->
-                    case parseIngredients rest2 of
-                        
-                        Right (ingredients, rest3) ->
-                            Right (AddSubRecipeWithIngredients recipeName potentialSubRecipe ingredients, rest3)
-                        
-                        Left _ ->
-                            case parseIngredients rest1 of
-                                Right (ingredients, rest4) ->
-                                    Right (AddRecipe recipeName ingredients, rest4)
-                                Left err -> Left err
-                
-                Left _ ->
-                    case parseIngredients rest1 of
-                        Right (ingredients, rest2) ->
-                            Right (AddRecipe recipeName ingredients, rest2)
-                        Left err -> Left err
-
-
-
-
+            case parseSubrecipesAndIngredients rest1 of
+                Right (subRecipes, ingredients, rest2) ->
+                    if null subRecipes
+                    then Right (AddRecipe recipeName ingredients, rest2)
+                    else if null ingredients
+                         then Right (AddSubRecipes recipeName subRecipes, rest2)
+                         else Right (AddSubRecipeWithIngredients recipeName (unwords subRecipes) ingredients, rest2)
+                Left err -> Left err
 
 parseRemoveCommand :: Parser String
 parseRemoveCommand = parseWord
-
 
 parseSearchCommand :: Parser SearchCommand
 parseSearchCommand input =
@@ -129,7 +119,6 @@ parseSearchCommand input =
                 Left err -> Left err
                 Right (ingredientName, rest') -> Right (SearchByIngredient ingredientName, rest')
         Right _ -> Left "Invalid search command"
-
 
 parseCommand :: Parser Command
 parseCommand input =

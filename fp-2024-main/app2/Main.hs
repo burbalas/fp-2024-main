@@ -36,22 +36,28 @@ executeCommand (Add (AddRecipe name ingredients)) = do
     modify (addRecipe name ingredients)
     liftIO $ putStrLn $ "Added recipe: " ++ name
     return True
-executeCommand (Add (AddSubRecipeWithIngredients name subRecipe newIngredients)) = do
+executeCommand (Add (AddSubRecipes name subRecipes)) = do
     recipes <- get
-    case findRecipe recipes subRecipe of
-        Just subRecipeObj -> do
-            let combinedIngredients = ingredients subRecipeObj ++ newIngredients
-            modify (addRecipe name combinedIngredients)
-            liftIO $ putStrLn $ "Added recipe: " ++ name ++ " with sub-recipe: " ++ subRecipe ++ " and new ingredients."
-        Nothing -> liftIO $ putStrLn $ "Sub-recipe " ++ subRecipe ++ " not found."
+    let subRecipeIngredients = concatMap (\sub -> case findRecipe recipes sub of
+                                                    Just (Recipe _ ing) -> ing
+                                                    Nothing -> []) subRecipes
+    if null subRecipeIngredients
+        then liftIO $ putStrLn "One or more subrecipes not found."
+        else do
+            modify (addRecipe name subRecipeIngredients)
+            liftIO $ putStrLn $ "Added recipe: " ++ name ++ " with subrecipes: " ++ unwords subRecipes
     return True
-executeCommand (Add (AddSubRecipe name sub)) = do
+executeCommand (Add (AddSubRecipeWithIngredients name subRecipes ingredients)) = do
     recipes <- get
-    case findRecipe recipes sub of
-        Just subRecipe -> do
-            modify (addRecipe name (ingredients subRecipe))
-            liftIO $ putStrLn $ "Added recipe: " ++ name ++ " with sub-recipe: " ++ sub
-        Nothing -> liftIO $ putStrLn $ "Sub-recipe " ++ sub ++ " not found."
+    let subRecipeIngredients = concatMap (\sub -> case findRecipe recipes sub of
+                                                    Just (Recipe _ ing) -> ing
+                                                    Nothing -> []) (words subRecipes)
+    if null subRecipeIngredients
+        then liftIO $ putStrLn "One or more subrecipes not found."
+        else do
+            let combinedIngredients = subRecipeIngredients ++ ingredients
+            modify (addRecipe name combinedIngredients)
+            liftIO $ putStrLn $ "Added recipe: " ++ name ++ " with subrecipes: " ++ subRecipes ++ " and additional ingredients."
     return True
 executeCommand (Remove name) = do
     modify (filter ((/= name) . recipeName))
@@ -84,8 +90,12 @@ executeCommand Exit = do
     liftIO $ putStrLn "Exiting the program."
     return False
 
+
+
 addRecipe :: String -> [Ingredient] -> [Recipe] -> [Recipe]
-addRecipe name ing recipes = Recipe name ing : recipes
+addRecipe name ing recipes
+    | any ((== name) . recipeName) recipes = recipes -- No duplicate added
+    | otherwise = Recipe name ing : recipes
 
 findRecipe :: [Recipe] -> String -> Maybe Recipe
 findRecipe recipes name = find ((== name) . recipeName) recipes
