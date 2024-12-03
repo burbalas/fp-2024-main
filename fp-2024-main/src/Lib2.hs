@@ -43,33 +43,25 @@ data Ingredient = Ingredient
 dropWhitespace :: String -> String
 dropWhitespace = dropWhile (`elem` " \t\n")
 
-parseWord :: String -> Either String (String, String)
-parseWord input =
-    let (word, rest) = span isAlpha (dropWhitespace input)
-    in if null word
-       then Left "Expected a word"
-       else Right (word, rest)
-
-parseDigits :: String -> Either String (Int, String)
-parseDigits input =
-    let (digits, rest) = span isDigit (dropWhitespace input)
-    in if null digits
-       then Left "Expected a number"
-       else Right (read digits, rest)
-
-parseIngredient :: String -> Either String (Ingredient, String)
-parseIngredient input =
-    case parseWord input of
+-- <command> ::= "add" " " <add_command> 
+--              | "remove" " " <remove_command> 
+--              | "list recipes"
+--              | "search" " " <search_command> 
+--              | "exit"
+parseCommand :: String -> Either String (Command, String)
+parseCommand input =
+    case parseWord (dropWhitespace input) of
+        Right ("add", rest) -> fmap (\(addCmd, rest') -> (Add addCmd, rest')) (parseAddCommand rest)
+        Right ("remove", rest) -> fmap (\(name, rest') -> (Remove name, rest')) (parseWord rest)
+        Right ("list", _) -> Right (ListRecipes, "")
+        Right ("search", rest) ->
+            fmap (\(searchCmd, rest') -> (Search searchCmd, rest')) (parseSearchCommand rest)
+        Right ("exit", _) -> Right (Exit, "")
+        Right _ -> Left "Unknown command"
         Left err -> Left err
-        Right (name, rest1) ->
-            case parseDigits rest1 of
-                Left err -> Left err
-                Right (qty, rest2) ->
-                    case parseDigits rest2 of
-                        Left err -> Left err
-                        Right (cal, rest3) ->
-                            Right (Ingredient name qty cal, rest3)
 
+-- <add_command> ::= <recipe_name> " " <ingredients> 
+--                | <recipe_name> " " <recipe> 
 parseAddCommand :: String -> Either String (AddCommand, String)
 parseAddCommand input =
     case parseWord input of
@@ -87,6 +79,58 @@ parseAddCommand input =
                             else Right (AddSubRecipeWithIngredients recipeName (unwords subRecipes) ingredients, rest2)
                    Left err -> Left err
 
+
+-- <search_command> ::= "name" " " <recipe_name> 
+--                   | "ingredient" " " <ingredient_name>
+parseSearchCommand :: String -> Either String (SearchCommand, String)
+parseSearchCommand input =
+    case parseWord input of
+        Right ("name", rest) -> fmap (\(name, rest') -> (SearchByName name, rest')) (parseWord rest)
+        Right ("ingredient", rest) -> fmap (\(name, rest') -> (SearchByIngredient name, rest')) (parseWord rest)
+        Right _ -> Left "Invalid search command"
+        Left err -> Left err
+
+
+-- <recipe_name> ::= <word> | <word> <recipe_name>
+-- <ingredient_name> ::= <word> | <word> <ingredient_name>
+parseWord :: String -> Either String (String, String)
+parseWord input =
+    let (word, rest) = span isAlpha (dropWhitespace input)
+    in if null word
+       then Left "Expected a word"
+       else Right (word, rest)
+
+parseDigits :: String -> Either String (Int, String)
+parseDigits input =
+    let (digits, rest) = span isDigit (dropWhitespace input)
+    in if null digits
+       then Left "Expected a number"
+       else Right (read digits, rest)
+
+
+-- <ingredient> ::= <ingredient_name> <quantity> <calorie_value>
+-- <quantity> ::= <digit> | <digit> <quantity>
+-- <calorie_value> ::= <digit> | <digit> <calorie_value>
+parseIngredient :: String -> Either String (Ingredient, String)
+parseIngredient input =
+    case parseWord input of
+        Left err -> Left err
+        Right (name, rest1) ->
+            case parseDigits rest1 of
+                Left err -> Left err
+                Right (qty, rest2) ->
+                    case parseDigits rest2 of
+                        Left err -> Left err
+                        Right (cal, rest3) ->
+                            Right (Ingredient name qty cal, rest3)
+
+
+-- <ingredients> ::= <ingredient> | <ingredient> <ingredients>
+-- <recipe> ::= <ingredients> | <sub_recipe>
+--             | <ingredients> <sub_recipe>
+--             | <sub_recipe> <ingredients> 
+--             | <sub_recipe> <recipe>
+-- <sub_recipe> ::= <recipe_name>
 
 parseSubrecipesAndIngredients :: String -> Either String ([String], [Ingredient], String)
 parseSubrecipesAndIngredients input = parseLoop (dropWhitespace input) [] []
@@ -134,22 +178,4 @@ parseSubrecipeLoop input subRecipes =
         Left _ -> Right (subRecipes, trimmed)
 
 
-parseCommand :: String -> Either String (Command, String)
-parseCommand input =
-    case parseWord (dropWhitespace input) of
-        Right ("add", rest) -> fmap (\(addCmd, rest') -> (Add addCmd, rest')) (parseAddCommand rest)
-        Right ("remove", rest) -> fmap (\(name, rest') -> (Remove name, rest')) (parseWord rest)
-        Right ("list", _) -> Right (ListRecipes, "")
-        Right ("search", rest) ->
-            fmap (\(searchCmd, rest') -> (Search searchCmd, rest')) (parseSearchCommand rest)
-        Right ("exit", _) -> Right (Exit, "")
-        Right _ -> Left "Unknown command"
-        Left err -> Left err
 
-parseSearchCommand :: String -> Either String (SearchCommand, String)
-parseSearchCommand input =
-    case parseWord input of
-        Right ("name", rest) -> fmap (\(name, rest') -> (SearchByName name, rest')) (parseWord rest)
-        Right ("ingredient", rest) -> fmap (\(name, rest') -> (SearchByIngredient name, rest')) (parseWord rest)
-        Right _ -> Left "Invalid search command"
-        Left err -> Left err
