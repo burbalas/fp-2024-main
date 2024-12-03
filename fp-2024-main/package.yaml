@@ -21,6 +21,8 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- mtl
+- hspec
 
 ghc-options:
 - -Wall
@@ -48,6 +50,16 @@ executables:
     - fp2024
     - repline
 
+  fp2024-two:  # Name of the second executable
+    main: Main.hs
+    source-dirs: app2
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+    dependencies:
+      - fp2024  # Use the library defined above
+
 tests:
   fp2024-test:
     main:                Spec.hs
@@ -57,6 +69,8 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - base
     - fp2024
     - tasty
     - tasty-hunit
+
