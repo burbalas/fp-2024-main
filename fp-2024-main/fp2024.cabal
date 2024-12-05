@@ -28,6 +28,7 @@ library
       Lessons.Lesson01
       Lib1
       Lib2
+      Lib3
   other-modules:
       Paths_fp2024
   autogen-modules:
@@ -36,9 +37,18 @@ library
       src
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
+    , directory
     , hspec
     , mtl
+    , random
+    , split
+    , stm >=2.5.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , time
   default-language: Haskell2010
 
 executable fp2024-one
@@ -51,15 +61,49 @@ executable fp2024-one
       app1
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
+    , directory
     , fp2024
     , hspec
     , mtl
+    , random
     , repline
+    , split
+    , stm >=2.5.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , time
+  default-language: Haskell2010
+
+executable fp2024-three
+  main-is: Main3.hs
+  other-modules:
+      Paths_fp2024
+  autogen-modules:
+      Paths_fp2024
+  hs-source-dirs:
+      app3
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck
+    , base >=4.7 && <5
+    , directory
+    , fp2024
+    , hspec
+    , mtl
+    , random
+    , split
+    , stm >=2.5.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , time
   default-language: Haskell2010
 
 executable fp2024-two
-  main-is: Main.hs
+  main-is: Main2.hs
   other-modules:
       Paths_fp2024
   autogen-modules:
@@ -68,10 +112,19 @@ executable fp2024-two
       app2
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      QuickCheck
+    , base >=4.7 && <5
+    , directory
     , fp2024
     , hspec
     , mtl
+    , random
+    , split
+    , stm >=2.5.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , time
   default-language: Haskell2010
 
 test-suite fp2024-test
@@ -85,10 +138,17 @@ test-suite fp2024-test
       test
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base
+      QuickCheck
+    , base
+    , directory
     , fp2024
     , hspec
     , mtl
+    , random
+    , split
+    , stm >=2.5.1
     , tasty
     , tasty-hunit
+    , tasty-quickcheck
+    , time
   default-language: Haskell2010

@@ -176,6 +176,3 @@ parseSubrecipeLoop input subRecipes =
             then parseSubrecipeLoop rest (subRecipes ++ [word])
             else Right (subRecipes, trimmed)
         Left _ -> Right (subRecipes, trimmed)
-
-
-

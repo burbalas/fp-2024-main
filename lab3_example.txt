@@ -1,0 +1,7 @@
+add Pancakes flour 300 200 sugar 100 200
+add Omelette eggs 200 300 milk 100 100
+save recipes.txt
+remove Pancakes
+list recipes
+load recipes.txt
+list recipes
