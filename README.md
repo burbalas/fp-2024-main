@@ -43,11 +43,11 @@ Pvz.:
 
 ## Naudojamos komandos
 
-- add <Recipe> <subrecipes> <ingredients>
-- remove <Recipe>
-- list recipes
-- search <Recipe> || <ingredient>
-- exit
+- `add <Recipe> <subrecipes> <ingredients>`
+- `remove <Recipe>`
+- `list recipes`
+- `search <Recipe> || <ingredient>`
+- `exit`
 
 ## Testavimas
 
