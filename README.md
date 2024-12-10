@@ -33,3 +33,29 @@ Pvz.:
 - **Ieškoti recepto pagal ingredientą**: `search ingredient ryžiai`
 - **Peržiūrėti visus receptus**: `list recipes`
 
+# Lab 2
+
+- Ši programa leidžia naudotojams valdyti receptus per komandinę eilutę. Naudotojai gali pridėti, ieškoti, peržiūrėti ir pašalinti receptus.
+
+## Programos naudojimas
+
+- Norėdami paleisti programą naudokite `stack run fp2024-two`
+
+## Naudojamos komandos
+
+- add <Recipe> <subrecipes> <ingredients>
+- remove <Recipe>
+- list recipes
+- search <Recipe> || <ingredient>
+- exit
+
+## Testavimas
+
+- Testavimo sesija pateikta `lab2_example.txt` faile
+  - Komandas, kurios buvo vykdomos programoje.
+  - Programos atsakymus į pateiktas komandas.
+ 
+## Automatinis testavimas
+
+- Komandų parsinimas
+- Programos būsenos pokyčiai
