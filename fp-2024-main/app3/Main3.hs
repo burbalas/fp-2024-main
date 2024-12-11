@@ -1,8 +1,11 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main where
 
 import Lib2
 import Lib3
-import Control.Monad (foldM)
+import Control.Concurrent.STM
+import Control.Monad (unless, foldM)
 import System.Directory (doesFileExist)
 import System.IO
 
@@ -10,180 +13,195 @@ data REPLState = Normal | Grouping String [ExtendedCommand]
 
 main :: IO ()
 main = do
-    repl Normal []
+    recipesVar <- newTVarIO []
+    repl Normal recipesVar
 
-repl :: REPLState -> [Recipe] -> IO ()
-repl state recipes = do
+repl :: REPLState -> TVar [Recipe] -> IO ()
+repl state recipesVar = do
     putStr "Enter a command: "
     hFlush stdout
     input <- getLine
     case parseExtendedCommand input of
         Left err -> do
             putStrLn $ "Error: " ++ err
-            repl state recipes
-        Right command -> handleCommand state command recipes
+            repl state recipesVar
+        Right command -> handleCommand state command recipesVar
 
-handleCommand :: REPLState -> ExtendedCommand -> [Recipe] -> IO ()
-handleCommand Normal (Command cmd) recipes = do
-    (continue, newRecipes) <- executeCommand cmd recipes
-    if continue
-        then repl Normal newRecipes
-        else putStrLn "Goodbye!"
-
-handleCommand Normal (BatchFile fileName) recipes = do
+handleCommand :: REPLState -> ExtendedCommand -> TVar [Recipe] -> IO ()
+handleCommand Normal (BatchFile fileName) recipesVar = do
     fileExists <- doesFileExist fileName
     if fileExists
         then do
             contents <- readFile fileName
-            (continue, newRecipes, errors) <- batchProcessCommands executeCommand contents recipes
-            mapM_ putStrLn errors
-            if continue
-                then repl Normal newRecipes
-                else putStrLn "Exiting program."
+            result <- atomically $ batchProcessAtomic contents recipesVar
+            case result of
+                Left err -> putStrLn $ "Batch processing failed: " ++ err
+                Right logs -> mapM_ putStrLn logs
+            repl Normal recipesVar
         else do
             putStrLn $ "File not found: " ++ fileName
-            repl Normal recipes
+            repl Normal recipesVar
 
+handleCommand Normal (Command cmd) recipesVar = do
+    result <- atomically $ processSingleCommand recipesVar cmd
+    case result of
+        Left err -> putStrLn $ "Error: " ++ err
+        Right logs -> mapM_ putStrLn logs
+    unless (cmd == Exit) $ repl Normal recipesVar
 
+handleCommand Normal Help recipesVar = do
+    showHelp
+    repl Normal recipesVar
 
-
-handleCommand Normal (Save fileName) recipes = do
+handleCommand Normal (Save fileName) recipesVar = do
+    recipes <- readTVarIO recipesVar
     saveRecipes fileName recipes
     putStrLn $ "Recipes saved to file: " ++ fileName
-    repl Normal recipes
+    repl Normal recipesVar
 
-handleCommand Normal (Begin groupName) recipes = do
+handleCommand Normal (Load fileName) recipesVar = do
+    fileExists <- doesFileExist fileName
+    if fileExists
+        then do
+            loadedRecipes <- loadRecipes fileName
+            atomically $ writeTVar recipesVar loadedRecipes
+            putStrLn $ "Recipes loaded from file: " ++ fileName
+            repl Normal recipesVar
+        else do
+            putStrLn $ "File not found: " ++ fileName
+            repl Normal recipesVar
+   
+
+handleCommand Normal (Begin groupName) recipesVar = do
     putStrLn $ "Started grouping session: " ++ groupName
-    repl (Grouping groupName []) recipes
+    repl (Grouping groupName []) recipesVar
+
+handleCommand (Grouping groupName commands) End recipesVar = do
+    result <- atomically $ executeGroupedCommands recipesVar commands
+    case result of
+        Left err -> putStrLn $ "Error: " ++ err
+        Right logs -> mapM_ putStrLn logs
+    repl Normal recipesVar
+
+handleCommand (Grouping groupName commands) cmd recipesVar = do
+    putStrLn $ "Added command to group: " ++ show cmd
+    repl (Grouping groupName (commands ++ [cmd])) recipesVar
+
+handleCommand _ _ _ = putStrLn "Command not recognized."
+
+processSingleCommand :: TVar [Recipe] -> Command -> STM (Either String [String])
+processSingleCommand recipesVar cmd = do
+    recipes <- readTVar recipesVar
+    case executeCommandSync cmd recipes of
+        Left err -> return $ Left err
+        Right (newRecipes, logs) -> do
+            writeTVar recipesVar newRecipes
+            return $ Right logs
+
+batchProcessAtomic :: String -> TVar [Recipe] -> STM (Either String [String])
+batchProcessAtomic input recipesVar = do
+    recipes <- readTVar recipesVar
+    let parsedCommands = traverse parseExtendedCommand (lines input)
+    case parsedCommands of
+        Left err -> return $ Left $ "Parsing error: " ++ err
+        Right commands -> do
+            let invalidCommands = filter isInvalidCommand commands
+            if not (null invalidCommands)
+                then return $ Left "Error: Save and Load commands are not allowed in batch mode."
+                else executeGroupedCommands recipesVar commands
+
+isInvalidCommand :: ExtendedCommand -> Bool
+isInvalidCommand (Save _) = True
+isInvalidCommand (Load _) = True
+isInvalidCommand _ = False
 
 
-handleCommand (Grouping groupName commands) End recipes = do
-    putStrLn $ "Ending grouping session: " ++ groupName
-    (newRecipes, errors) <- processGroupedCommands commands recipes
-    mapM_ putStrLn errors
-    repl Normal newRecipes
+executeGroupedCommands :: TVar [Recipe] -> [ExtendedCommand] -> STM (Either String [String])
+executeGroupedCommands recipesVar commands = do
+    recipes <- readTVar recipesVar
+    let groupedCommands = [cmd | Command cmd <- commands]
+    case processCommandsAtomic groupedCommands recipes of
+        Left err -> return $ Left err
+        Right (newRecipes, logs) -> do
+            writeTVar recipesVar newRecipes
+            return $ Right logs
 
-
-handleCommand (Grouping groupName commands) cmd recipes = do
-    putStrLn $ "Adding command to group: " ++ show cmd
-    repl (Grouping groupName (commands ++ [cmd])) recipes
-
-handleCommand Normal Help recipes = do
-    showHelp
-    repl Normal recipes
-
-
-handleCommand (Grouping groupName commands) End recipes = do
-    putStrLn $ "Ending grouping session: " ++ groupName
-    (newRecipes, errors) <- processGroupedCommands commands recipes
-    mapM_ putStrLn errors
-    repl Normal newRecipes
-
-handleCommand (Grouping groupName commands) cmd recipes = do
-    putStrLn $ "Adding command to group: " ++ show cmd
-    repl (Grouping groupName (commands ++ [cmd])) recipes
-
-    
-
-handleCommand _ _ recipes = do
-    putStrLn "Command not recognized."
-    repl Normal recipes
-
-
-processGroupedCommands :: [ExtendedCommand] -> [Recipe] -> IO ([Recipe], [String])
-processGroupedCommands commands recipes = foldM executeGroupedCommand (recipes, []) commands
-
-
-executeGroupedCommand :: ([Recipe], [String]) -> ExtendedCommand -> IO ([Recipe], [String])
-executeGroupedCommand (currentRecipes, errors) (Command cmd) = do
-    (continue, newRecipes) <- executeCommand cmd currentRecipes
-    if continue
-        then return (newRecipes, errors)
-        else return (currentRecipes, errors ++ ["Batch processing interrupted."])
-executeGroupedCommand result _ = return result
+processCommandsAtomic :: [Command] -> [Recipe] -> Either String ([Recipe], [String])
+processCommandsAtomic commands recipes =
+    foldM applyCommand (recipes, []) commands
+  where
+    applyCommand :: ([Recipe], [String]) -> Command -> Either String ([Recipe], [String])
+    applyCommand (currentRecipes, logs) cmd =
+        case executeCommandSync cmd currentRecipes of
+            Left err -> Left err
+            Right (newRecipes, logOutput) -> Right (newRecipes, logs ++ logOutput)
 
 
 
-executeCommandSync :: Command -> [Recipe] -> Either String [Recipe]
+
+executeCommandSync :: Command -> [Recipe] -> Either String ([Recipe], [String])
 executeCommandSync (Add (AddRecipe name ingredients)) recipes =
     if any ((== name) . recipeName) recipes
     then Left $ "Recipe " ++ name ++ " already exists."
-    else Right (Recipe name ingredients : recipes)
+    else Right (Recipe name ingredients : recipes, ["Added recipe: " ++ name])
+
+executeCommandSync (Add (AddSubRecipes name subRecipes)) recipes =
+    let missingSubRecipes = filter (\sub -> findRecipe recipes sub == Nothing) subRecipes
+    in if not (null missingSubRecipes)
+       then Left $ "One or more sub-recipes not found: " ++ unwords missingSubRecipes
+       else
+           let subRecipeIngredients = concatMap (\sub -> case findRecipe recipes sub of
+                                                           Just (Recipe _ ing) -> ing
+                                                           Nothing -> []) subRecipes
+           in Right (Recipe name subRecipeIngredients : recipes,
+                     ["Added recipe: " ++ name ++ " with sub-recipes: " ++ unwords subRecipes])
+
+
+executeCommandSync (Add (AddSubRecipeWithIngredients name subRecipes ingredients)) recipes =
+    let subRecipeList = words subRecipes
+        missingSubRecipes = filter (\sub -> findRecipe recipes sub == Nothing) subRecipeList
+    in if not (null missingSubRecipes)
+       then Left $ "One or more sub-recipes not found: " ++ unwords missingSubRecipes
+       else
+           let subRecipeIngredients = concatMap (\sub -> case findRecipe recipes sub of
+                                                           Just (Recipe _ ing) -> ing
+                                                           Nothing -> []) subRecipeList
+               combinedIngredients = subRecipeIngredients ++ ingredients
+           in Right (Recipe name combinedIngredients : recipes,
+                     ["Added recipe: " ++ name ++ " with sub-recipes and additional ingredients."])
+
+
 
 executeCommandSync (Remove name) recipes =
-    Right $ filter ((/= name) . recipeName) recipes
-
-executeCommandSync ListRecipes recipes = Right recipes
-executeCommandSync _ recipes = Right recipes
-
-executeCommand :: Command -> [Recipe] -> IO (Bool, [Recipe])
-executeCommand (Add (AddRecipe name ingredients)) recipes =
     if any ((== name) . recipeName) recipes
-    then do
-        putStrLn "Recipe already exists."
-        return (True, recipes)
-    else do
-        putStrLn $ "Added recipe: " ++ name
-        return (True, Recipe name ingredients : recipes)
+    then
+        let newRecipes = filter ((/= name) . recipeName) recipes
+        in Right (newRecipes, ["Removed recipe: " ++ name])
+    else
+        Left $ "Recipe " ++ name ++ " does not exist."
 
-executeCommand (Add (AddSubRecipes name subRecipes)) recipes =
-    let subRecipeIngredients = concatMap (\sub -> case findRecipe recipes sub of
-                                                    Just (Recipe _ ing) -> ing
-                                                    Nothing -> []) subRecipes
-    in if null subRecipeIngredients
-       then do
-           putStrLn "One or more subrecipes not found."
-           return (True, recipes)
-       else do
-           putStrLn $ "Added recipe: " ++ name ++ " with subrecipes: " ++ unwords subRecipes
-           return (True, Recipe name subRecipeIngredients : recipes)
+executeCommandSync ListRecipes recipes =
+    let logOutput = if null recipes
+                    then ["No recipes found."]
+                    else "Recipes:" : map recipeName recipes
+    in Right (recipes, logOutput)
 
-executeCommand (Add (AddSubRecipeWithIngredients name subRecipes ingredients)) recipes =
-    let subRecipeIngredients = concatMap (\sub -> case findRecipe recipes sub of
-                                                    Just (Recipe _ ing) -> ing
-                                                    Nothing -> []) (words subRecipes)
-        combinedIngredients = subRecipeIngredients ++ ingredients
-    in if null subRecipeIngredients
-       then do
-           putStrLn "One or more subrecipes not found."
-           return (True, recipes)
-       else do
-           putStrLn $ "Added recipe: " ++ name ++ " with subrecipes: " ++ subRecipes
-                     ++ " and additional ingredients."
-           return (True, Recipe name combinedIngredients : recipes)
-
-executeCommand (Remove name) recipes =
-    let newRecipes = filter ((/= name) . recipeName) recipes
-    in do
-        putStrLn $ "Removed recipe: " ++ name
-        return (True, newRecipes)
-
-executeCommand ListRecipes recipes = do
-    if null recipes
-    then putStrLn "No recipes found."
-    else mapM_ (putStrLn . recipeName) recipes
-    return (True, recipes)
-
-executeCommand (Search (SearchByName name)) recipes = do
+executeCommandSync (Search (SearchByName name)) recipes =
     case findRecipe recipes name of
-        Just recipe -> do
-            putStrLn $ "Recipe: " ++ recipeName recipe
-            mapM_ (putStrLn . showIngredient) (ingredients recipe)
-        Nothing -> putStrLn $ "Recipe " ++ name ++ " not found."
-    return (True, recipes)
+        Just (Recipe recipeName ingredients) ->
+            Right (recipes, [recipeName ++ ":\n" ++ unlines (map showIngredient ingredients)])
+        Nothing -> Left $ "Recipe " ++ name ++ " not found."
 
-executeCommand (Search (SearchByIngredient ingredient)) recipes = do
+executeCommandSync (Search (SearchByIngredient ingredient)) recipes =
     let results = filter (hasIngredient ingredient) recipes
-    if null results
-    then putStrLn $ "No recipes found with ingredient: " ++ ingredient
-    else do
-        putStrLn $ "Recipes with " ++ ingredient ++ ":"
-        mapM_ (putStrLn . recipeName) results
-    return (True, recipes)
+        logOutput = if null results
+                    then ["No recipes found with ingredient: " ++ ingredient]
+                    else ["Recipes with " ++ ingredient ++ ":\n" ++ unlines (map recipeName results)]
+    in Right (recipes, logOutput)
 
-executeCommand Exit recipes = do
-    putStrLn "Exiting the program."
-    return (False, recipes)
+
+executeCommandSync _ recipes =
+    Right (recipes, ["Command executed successfully."])
 
 
 showHelp :: IO ()
@@ -213,4 +231,7 @@ hasIngredient ingredient recipe =
 
 showIngredient :: Ingredient -> String
 showIngredient (Ingredient name qty cal) =
-    name ++ " (Mass: " ++ show qty ++ ", Calories: " ++ show cal ++ ")"
+    name ++ " (Quantity: " ++ show qty ++ ", Calories: " ++ show cal ++ ")"
+
+
+    

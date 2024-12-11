@@ -32,6 +32,7 @@ dependencies:
 - QuickCheck
 - time
 - random
+- deepseq
 
 
 ghc-options:

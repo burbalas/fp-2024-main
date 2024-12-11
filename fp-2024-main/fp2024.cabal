@@ -39,6 +39,7 @@ library
   build-depends:
       QuickCheck
     , base >=4.7 && <5
+    , deepseq
     , directory
     , hspec
     , mtl
@@ -63,6 +64,7 @@ executable fp2024-one
   build-depends:
       QuickCheck
     , base >=4.7 && <5
+    , deepseq
     , directory
     , fp2024
     , hspec
@@ -89,6 +91,7 @@ executable fp2024-three
   build-depends:
       QuickCheck
     , base >=4.7 && <5
+    , deepseq
     , directory
     , fp2024
     , hspec
@@ -114,6 +117,7 @@ executable fp2024-two
   build-depends:
       QuickCheck
     , base >=4.7 && <5
+    , deepseq
     , directory
     , fp2024
     , hspec
@@ -140,6 +144,7 @@ test-suite fp2024-test
   build-depends:
       QuickCheck
     , base
+    , deepseq
     , directory
     , fp2024
     , hspec

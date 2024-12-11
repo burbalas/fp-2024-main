@@ -1,7 +1,67 @@
-add Pancakes flour 300 200 sugar 100 200
-add Omelette eggs 200 300 milk 100 100
-save recipes.txt
-remove Pancakes
-list recipes
-load recipes.txt
-list recipes
+Enter a command: add Pancakes flour 200 300 sugar 100 200
+Added recipe: Pancakes
+Enter a command: add Breakfast Pancakes beacon 200 400 eggs 100 200
+Added recipe: Breakfast with sub-recipes and additional ingredients.
+Enter a command: add Soup potatoes 300 200 carrots 200 150 onions 100 80
+Added recipe: Soup
+Enter a command: add Steak meat 200 150 salt 30 25
+Added recipe: Steak
+Enter a command: add Dinner Soup Steak sauce 100 200
+Added recipe: Dinner with sub-recipes and additional ingredients.
+Enter a command: add Lunch Soup Steak
+Added recipe: Lunch with sub-recipes: Soup Steak
+Enter a command: list
+Recipes:
+Lunch
+Dinner
+Steak
+Soup
+Breakfast
+Pancakes
+Enter a command: search name Dinner
+Dinner:
+potatoes (Quantity: 300, Calories: 200)
+carrots (Quantity: 200, Calories: 150)
+onions (Quantity: 100, Calories: 80)
+meat (Quantity: 200, Calories: 150)
+salt (Quantity: 30, Calories: 25)
+sauce (Quantity: 100, Calories: 200)
+
+Enter a command: search ingredient flour
+Recipes with flour:
+Breakfast
+Pancakes
+
+Enter a command: search ingredient sauce
+Recipes with sauce:
+Dinner
+
+Enter a command: save meals.txt
+Recipes saved to file: meals.txt
+Enter a command: remove Soup
+Removed recipe: Soup
+Enter a command: list
+Recipes:
+Lunch
+Dinner
+Steak
+Breakfast
+Pancakes
+Enter a command: load meals.txt
+Recipes loaded from file: meals.txt
+Enter a command: list
+Recipes:
+Lunch
+Dinner
+Steak
+Soup
+Breakfast
+Pancakes
+Enter a command: search name Dinner
+Dinner:
+potatoes (Quantity: 300, Calories: 200)
+carrots (Quantity: 200, Calories: 150)
+onions (Quantity: 100, Calories: 80)
+meat (Quantity: 200, Calories: 150)
+salt (Quantity: 30, Calories: 25)
+sauce (Quantity: 100, Calories: 200)

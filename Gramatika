@@ -1,8 +1,16 @@
-<command> ::= "add" " " <add_command> 
-           | "remove" " " <remove_command> 
-           | "list recipes"
-           | "search" " " <search_command> 
-           | "exit"
+<batch_command> ::= "begin" <batch_name> ; <commands> ;  "end"
+
+<commands> ::= <command>
+             | <command> <commands>
+
+<command> ::= "add" " " <add_command>
+            | "remove" " " <remove_command>
+            | "list recipes"
+            | "search" " " <search_command>
+            | "save" " " <filename>
+            | "load" " " <filename>
+            | "batch" " " <filename>
+            | "exit"
 
 <add_command> ::= <recipe_name> " " <ingredients> 
                 | <recipe_name> " " <recipe> 
@@ -29,6 +37,10 @@
 <quantity> ::= <digit> | <digit> <quantity>
 
 <calorie_value> ::= <digit> | <digit> <calorie_value>
+
+<batch_name> ::= <word> | <word> <batch_name>
+
+<filename> ::= <word> | <word> <filename>
 
 <word> ::= ( [A-Z]? | [a-z] )+
 <digit> ::= [0-9]+
