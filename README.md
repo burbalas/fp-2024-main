@@ -59,3 +59,45 @@ Pvz.:
 
 - Komandų parsinimas
 - Programos būsenos pokyčiai
+
+# Lab 3
+
+- Įgyvendintos grupavimo užklausos (batch processing) ir būsenos išsaugojimo bei užkrovimo funkcionalumas.
+
+## Pridėtas grupavimas
+- Grupavimas leidžia vykdyti kelias komandas vienu metu
+- Sintaksė `<batch_command> ::= "begin" <batch_name> ; <commands> ;  "end" `
+- Pavyzdys:
+ 
+ `begin breakfast`
+
+`add Pancakes flour 100 200 sugar 100 300;`
+  
+`add Breackfast Pancakes bacon 150 300;`
+
+`end breakfast`
+
+## Atomic transactions
+- Sugrupuotos komandos įvykdomos per vieną atominį veiksmą
+
+-     batchProcessAtomic :: String -> TVar [Recipe] -> STM (Either String [String])
+      batchProcessAtomic input recipesVar = do
+        recipes <- readTVar recipesVar
+        let parsedCommands = traverse parseExtendedCommand (lines input)
+        case parsedCommands of
+          Left err -> return $ Left $ "Parsing error: " ++ err
+          Right commands -> executeGroupedCommands recipesVar commands
+  
+## Save/Load
+-**Save:** Serializuoja būseną į užklausų rinkinį.
+-**Load:** Nuskaito serializuotas užklausas, kad atkurtų ankstesnę būseną.
+
+## Testavimas
+- Testavimo sesija pateikta `lab3_example.txt` faile
+- `batch` komandą galima patikrinti su `batch_t.txt` ir `batch_n.txt` failais
+  - `batch_t.txt` komandos įvykdomos sėkmingai
+  - `batch_n.txt` komandos neįvykdomos
+
+
+
+    
