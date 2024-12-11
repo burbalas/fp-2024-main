@@ -1,14 +1,39 @@
-{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
+module Main where
 
-import Test.Tasty ( TestTree, defaultMain, testGroup )
-import Test.Tasty.HUnit ( testCase, (@?=) )
+import Test.Tasty
+import Test.Tasty.QuickCheck as QC
+import Test.Tasty.HUnit
 import Lib2
+import Lib3
+import Control.DeepSeq (NFData, force)
+import GHC.Generics (Generic)
+
+-- Add Generic and NFData instances for Ingredient and Recipe
+deriving instance Generic Ingredient
+deriving instance NFData Ingredient
+
+deriving instance Generic Recipe
+deriving instance NFData Recipe
+
+-- Arbitrary Instances for Property-Based Testing
+instance Arbitrary Ingredient where
+    arbitrary = Ingredient
+        <$> listOf1 (choose ('a', 'z')) 
+        <*> arbitrary                    
+        <*> arbitrary                    
+
+instance Arbitrary Recipe where
+    arbitrary = Recipe
+        <$> listOf1 (choose ('a', 'z')) 
+        <*> arbitrary                   
 
 main :: IO ()
 main = defaultMain tests
 
-tests :: TestTree
 tests = testGroup "Parsing Tests"
     [ testCase "parses a single word correctly" $
         parseWord "  Hello World" @?= Right ("Hello", " World")
@@ -55,4 +80,40 @@ tests = testGroup "Parsing Tests"
 
     , testCase "returns an error for an invalid command" $
         parseCommand "random_command" @?= Left "Unknown command"
+    ]
+
+propertyTests :: TestTree
+propertyTests = testGroup "Property Tests"
+    [ QC.testProperty "Saving and then loading recipes preserves state" $
+        \recipes -> ioProperty $ do
+            let fileName = "test_recipes1.txt"
+            saveRecipes fileName recipes
+            loadedRecipes <- loadRecipes fileName
+            
+            return $ recipes == force loadedRecipes
+
+    , QC.testProperty "Saved queries reproduce original state" $
+        \recipes queryName -> ioProperty $ do
+            let fileName = "test_recipes2.txt"
+            saveRecipes fileName recipes
+            loadedRecipes <- loadRecipes fileName
+            
+            let originalResults = filter ((== queryName) . recipeName) recipes
+            let loadedResults = filter ((== queryName) . recipeName) (force loadedRecipes)
+            return $ originalResults == loadedResults
+    ]
+
+unitTests :: TestTree
+unitTests = testGroup "Unit Tests"
+    [ testCase "Serialize and deserialize an ingredient" $
+        let ingredient = Ingredient "sugar" 100 400
+            serialized = serializeIngredient ingredient
+            deserialized = deserializeIngredient serialized
+        in Just ingredient @=? deserialized
+
+    , testCase "Serialize and deserialize a recipe" $
+        let recipe = Recipe "cake" [Ingredient "sugar" 100 400, Ingredient "flour" 200 700]
+            serialized = serializeRecipe recipe
+            deserialized = deserializeRecipe serialized
+        in Just recipe @=? deserialized
     ]

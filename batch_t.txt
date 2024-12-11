@@ -1,0 +1,12 @@
+add Pancakes flour 200 300 sugar 100 200
+add Breakfast Pancakes beacon 200 400 eggs 100 200
+add Soup potatoes 300 200 carrots 200 150 onions 100 80
+add Steak meat 200 150 salt 30 25
+add Dinner Soup Steak sauce 100 200
+list recipes
+search name Dinner 
+search ingredient flour 
+search ingredient sauce
+remove Soup
+list recipes 
+search name Dinner
